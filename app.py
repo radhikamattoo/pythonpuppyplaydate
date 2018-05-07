@@ -19,7 +19,6 @@ class PuppyPlaydateGui(Frame):
 
         self.bind( "<Destroy>", self.__onDestroy )
         host,port = firstpeer.split(':')
-        print host,port
         self.btpeer.buildpeers( host, int(port), hops )
         self.updatePeerList()
 
@@ -57,44 +56,44 @@ class PuppyPlaydateGui(Frame):
       """
       Set up the frame widgets
       """
-      fileFrame = Frame(self)
+      dogFrame = Frame(self)
       peerFrame = Frame(self)
 
       rebuildFrame = Frame(self)
       searchFrame = Frame(self)
-      addfileFrame = Frame(self)
+      adddogFrame = Frame(self)
       pbFrame = Frame(self)
 
-      fileFrame.grid(row=0, column=0, sticky=N+S)
+      dogFrame.grid(row=0, column=0, sticky=N+S)
       peerFrame.grid(row=0, column=1, sticky=N+S)
       pbFrame.grid(row=2, column=1)
-      addfileFrame.grid(row=3)
+      adddogFrame.grid(row=3)
       searchFrame.grid(row=4)
       rebuildFrame.grid(row=3, column=1)
 
-      Label( fileFrame, text='Available Files' ).grid()
+      Label( dogFrame, text='Known Dogs' ).grid()
       Label( peerFrame, text='Peer List' ).grid()
 
-      fileListFrame = Frame(fileFrame)
-      fileListFrame.grid(row=1, column=0)
-      fileScroll = Scrollbar( fileListFrame, orient=VERTICAL )
-      fileScroll.grid(row=0, column=1, sticky=N+S)
+      dogListFrame = Frame(dogFrame)
+      dogListFrame.grid(row=1, column=0)
+      dogScroll = Scrollbar( dogListFrame, orient=VERTICAL )
+      dogScroll.grid(row=0, column=1, sticky=N+S)
 
-      self.fileList = Listbox(fileListFrame, height=5,
-                        yscrollcommand=fileScroll.set)
-      #self.fileList.insert( END, 'a', 'b', 'c', 'd', 'e', 'f', 'g' )
-      self.fileList.grid(row=0, column=0, sticky=N+S)
-      fileScroll["command"] = self.fileList.yview
+      self.dogList = Listbox(dogListFrame, height=5,
+                        yscrollcommand=dogScroll.set)
+      #self.dogList.insert( END, 'a', 'b', 'c', 'd', 'e', 'f', 'g' )
+      self.dogList.grid(row=0, column=0, sticky=N+S)
+      dogScroll["command"] = self.dogList.yview
 
-      self.fetchButton = Button( fileFrame, text='Fetch',
+      self.fetchButton = Button( dogFrame, text='Fetch',
                            command=self.onFetch)
       self.fetchButton.grid()
 
-      self.addfileEntry = Entry(addfileFrame, width=25)
-      self.addfileButton = Button(addfileFrame, text='Add',
+      self.adddogEntry = Entry(adddogFrame, width=25)
+      self.adddogButton = Button(adddogFrame, text='Add',
                            command=self.onAdd)
-      self.addfileEntry.grid(row=0, column=0)
-      self.addfileButton.grid(row=0, column=1)
+      self.adddogEntry.grid(row=0, column=0)
+      self.adddogButton.grid(row=0, column=1)
 
       self.searchEntry = Entry(searchFrame, width=25)
       self.searchButton = Button(searchFrame, text='Search',
@@ -128,12 +127,12 @@ class PuppyPlaydateGui(Frame):
 
 
     def onAdd(self):
-      file = self.addfileEntry.get()
+      file = self.adddogEntry.get()
       if file.lstrip().rstrip():
          filename = file.lstrip().rstrip()
-         self.btpeer.addlocalfile( filename )
-      self.addfileEntry.delete( 0, len(file) )
-      self.updateFileList()
+         self.btpeer.addlocaldog( filename )
+      self.adddogEntry.delete( 0, len(file) )
+      self.updateDogList()
 
 
     def onSearch(self):
@@ -146,9 +145,9 @@ class PuppyPlaydateGui(Frame):
 
 
     def onFetch(self):
-      sels = self.fileList.curselection()
+      sels = self.dogList.curselection()
       if len(sels)==1:
-         sel = self.fileList.get(sels[0]).split(':')
+         sel = self.dogList.get(sels[0]).split(':')
          if len(sel) > 2:  # fname:host:port
             fname,host,port = sel
             resp = self.btpeer.connectandsend( host, port, FILEGET, fname )
@@ -169,7 +168,7 @@ class PuppyPlaydateGui(Frame):
 
     def onRefresh(self):
       self.updatePeerList()
-      self.updateFileList()
+      self.updateDogList()
 
 
     def onRebuild(self):
