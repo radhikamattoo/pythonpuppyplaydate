@@ -30,12 +30,12 @@ class FilerPeer(BTPeer):
     #--------------------------------------------------------------------------
 	""" Initializes the peer to support connections up to maxpeers number
 	of peers, with its server listening on the specified port. Also sets
-	the dictionary of local files to empty and adds handlers to the 
+	the dictionary of local files to empty and adds handlers to the
 	BTPeer framework.
 
 	"""
 	BTPeer.__init__(self, maxpeers, serverport)
-	
+
 	self.files = {}  # available files: name --> peerid mapping
 
 	self.addrouter(self.__router)
@@ -64,7 +64,7 @@ class FilerPeer(BTPeer):
 
 
     #--------------------------------------------------------------------------
-    def __router(self, peerid):
+    def router(self, peerid):
     #--------------------------------------------------------------------------
 	if peerid not in self.getpeerids():
 	    return (None, None, None)
@@ -76,22 +76,23 @@ class FilerPeer(BTPeer):
 
 
     #--------------------------------------------------------------------------
-    def __handle_insertpeer(self, peerconn, data):
+    def handle_insertpeer(self, peerconn, data):
     #--------------------------------------------------------------------------
-	""" Handles the INSERTPEER (join) message type. The message data
-	should be a string of the form, "peerid  host  port", where peer-id
-	is the canonical name of the peer that desires to be added to this
-	peer's list of peers, host and port are the necessary data to connect
-	to the peer.
+	# """ Handles the INSERTPEER (join) message type. The message data
+	# should be a string of the form, "peerid  host  port", where peer-id
+	# is the canonical name of the peer that desires to be added to this
+	# peer's list of peers, host and port are the necessary data to connect
+	# to the peer.
+    #
+	# """"
 
-	"""
 	self.peerlock.acquire()
 	try:
 	    try:
 		peerid,host,port = data.split()
 
 		if self.maxpeersreached():
-		    self.__debug('maxpeers %d reached: connection terminating' 
+		    self.__debug('maxpeers %d reached: connection terminating'
 				  % self.maxpeers)
 		    peerconn.senddata(ERROR, 'Join: too many peers')
 		    return
@@ -115,7 +116,7 @@ class FilerPeer(BTPeer):
 
 
     #--------------------------------------------------------------------------
-    def __handle_listpeers(self, peerconn, data):
+    def handle_listpeers(self, peerconn, data):
     #--------------------------------------------------------------------------
 	""" Handles the LISTPEERS message type. Message data is not used. """
 	self.peerlock.acquire()
@@ -131,7 +132,7 @@ class FilerPeer(BTPeer):
 
 
     #--------------------------------------------------------------------------
-    def __handle_peername(self, peerconn, data):
+    def handle_peername(self, peerconn, data):
     #--------------------------------------------------------------------------
 	""" Handles the NAME message type. Message data is not used. """
 	peerconn.senddata(REPLY, self.myid)
@@ -140,12 +141,12 @@ class FilerPeer(BTPeer):
 
     # QUERY arguments: "return-peerid key ttl"
     #--------------------------------------------------------------------------
-    def __handle_query(self, peerconn, data):
+    def handle_query(self, peerconn, data):
     #--------------------------------------------------------------------------
 	""" Handles the QUERY message type. The message data should be in the
 	format of a string, "return-peer-id  key  ttl", where return-peer-id
 	is the name of the peer that initiated the query, key is the (portion
-	of the) file name being searched for, and ttl is how many further 
+	of the) file name being searched for, and ttl is how many further
 	levels of peers this query should be propagated on.
 
 	"""
@@ -158,17 +159,17 @@ class FilerPeer(BTPeer):
 	    peerconn.senddata(ERROR, 'Query: incorrect arguments')
 	# self.peerlock.release()
 
-	t = threading.Thread(target=self.__processquery, 
+	t = threading.Thread(target=self.__processquery,
 			      args=[peerid, key, int(ttl)])
 	t.start()
 
 
 
-    # 
+    #
     #--------------------------------------------------------------------------
-    def __processquery(self, peerid, key, ttl):
+    def processquery(self, peerid, key, ttl):
     #--------------------------------------------------------------------------
-	""" Handles the processing of a query message after it has been 
+	""" Handles the processing of a query message after it has been
 	received and acknowledged, by either replying with a QRESPONSE message
 	if the file is found in the local list of files, or propagating the
 	message onto all immediate neighbors.
@@ -182,7 +183,7 @@ class FilerPeer(BTPeer):
 		host,port = peerid.split(':')
 		# can't use sendtopeer here because peerid is not necessarily
 		# an immediate neighbor
-		self.connectandsend(host, int(port), QRESPONSE, 
+		self.connectandsend(host, int(port), QRESPONSE,
 				     '%s %s' % (fname, fpeerid),
 				     pid=peerid)
 		return
@@ -196,7 +197,7 @@ class FilerPeer(BTPeer):
 
 
     #--------------------------------------------------------------------------
-    def __handle_qresponse(self, peerconn, data):
+    def handle_qresponse(self, peerconn, data):
     #--------------------------------------------------------------------------
 	""" Handles the QRESPONSE message type. The message data should be
 	in the format of a string, "file-name  peer-id", where file-name is
@@ -207,7 +208,7 @@ class FilerPeer(BTPeer):
 	try:
 	    fname, fpeerid = data.split()
 	    if fname in self.files:
-		self.__debug('Can\'t add duplicate file %s %s' % 
+		self.__debug('Can\'t add duplicate file %s %s' %
 			      (fname, fpeerid))
 	    else:
 		self.files[fname] = fpeerid
@@ -218,7 +219,7 @@ class FilerPeer(BTPeer):
 
 
     #--------------------------------------------------------------------------
-    def __handle_fileget(self, peerconn, data):
+    def handle_fileget(self, peerconn, data):
     #--------------------------------------------------------------------------
 	""" Handles the FILEGET message type. The message data should be in
 	the format of a string, "file-name", where file-name is the name
@@ -243,13 +244,13 @@ class FilerPeer(BTPeer):
 	    self.__debug('Error reading file %s' % fname)
 	    peerconn.senddata(ERROR, 'Error reading file')
 	    return
-	
+
 	peerconn.senddata(REPLY, filedata)
 
 
 
     #--------------------------------------------------------------------------
-    def __handle_quit(self, peerconn, data):
+    def handle_quit(self, peerconn, data):
     #--------------------------------------------------------------------------
 	""" Handles the QUIT message type. The message data should be in the
 	format of a string, "peer-id", where peer-id is the canonical
@@ -261,12 +262,12 @@ class FilerPeer(BTPeer):
 	try:
 	    peerid = data.lstrip().rstrip()
 	    if peerid in self.getpeerids():
-		msg = 'Quit: peer removed: %s' % peerid 
+		msg = 'Quit: peer removed: %s' % peerid
 		self.__debug(msg)
 		peerconn.senddata(REPLY, msg)
 		self.removepeer(peerid)
 	    else:
-		msg = 'Quit: peer not found: %s' % peerid 
+		msg = 'Quit: peer not found: %s' % peerid
 		self.__debug(msg)
 		peerconn.senddata(ERROR, msg)
 	finally:
@@ -279,7 +280,7 @@ class FilerPeer(BTPeer):
     #--------------------------------------------------------------------------
     def buildpeers(self, host, port, hops=1):
     #--------------------------------------------------------------------------
-	""" buildpeers(host, port, hops) 
+	""" buildpeers(host, port, hops)
 
 	Attempt to build the local peer list up to the limit stored by
 	self.maxpeers, using a simple depth-first search given an
@@ -298,9 +299,9 @@ class FilerPeer(BTPeer):
 	    _, peerid = self.connectandsend(host, port, PEERNAME, '')[0]
 
 	    self.__debug("contacted " + peerid)
-	    resp = self.connectandsend(host, port, INSERTPEER, 
-					'%s %s %d' % (self.myid, 
-						      self.serverhost, 
+	    resp = self.connectandsend(host, port, INSERTPEER,
+					'%s %s %d' % (self.myid,
+						      self.serverhost,
 						      self.serverport))[0]
 	    self.__debug(str(resp))
 	    if (resp[0] != REPLY) or (peerid in self.getpeerids()):
