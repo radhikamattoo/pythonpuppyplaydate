@@ -37,7 +37,6 @@ class FilerPeer(BTPeer):
 	BTPeer.__init__(self, maxpeers, serverport)
 
 	self.files = {}  # available files: name --> peerid mapping
-
 	self.addrouter(self.__router)
 
 	handlers = {LISTPEERS : self.__handle_listpeers,
@@ -64,7 +63,7 @@ class FilerPeer(BTPeer):
 
 
     #--------------------------------------------------------------------------
-    def router(self, peerid):
+    def __router(self, peerid):
     #--------------------------------------------------------------------------
 	if peerid not in self.getpeerids():
 	    return (None, None, None)
@@ -78,14 +77,13 @@ class FilerPeer(BTPeer):
     #--------------------------------------------------------------------------
     def handle_insertpeer(self, peerconn, data):
     #--------------------------------------------------------------------------
-	# """ Handles the INSERTPEER (join) message type. The message data
-	# should be a string of the form, "peerid  host  port", where peer-id
-	# is the canonical name of the peer that desires to be added to this
-	# peer's list of peers, host and port are the necessary data to connect
-	# to the peer.
-    #
-	# """"
+	""" Handles the INSERTPEER (join) message type. The message data
+	should be a string of the form, "peerid  host  port", where peer-id
+	is the canonical name of the peer that desires to be added to this
+	peer's list of peers, host and port are the necessary data to connect
+	to the peer.
 
+	"""
 	self.peerlock.acquire()
 	try:
 	    try:
@@ -141,7 +139,7 @@ class FilerPeer(BTPeer):
 
     # QUERY arguments: "return-peerid key ttl"
     #--------------------------------------------------------------------------
-    def handle_query(self, peerconn, data):
+    def __handle_query(self, peerconn, data):
     #--------------------------------------------------------------------------
 	""" Handles the QUERY message type. The message data should be in the
 	format of a string, "return-peer-id  key  ttl", where return-peer-id
@@ -167,7 +165,7 @@ class FilerPeer(BTPeer):
 
     #
     #--------------------------------------------------------------------------
-    def processquery(self, peerid, key, ttl):
+    def __processquery(self, peerid, key, ttl):
     #--------------------------------------------------------------------------
 	""" Handles the processing of a query message after it has been
 	received and acknowledged, by either replying with a QRESPONSE message
@@ -197,7 +195,7 @@ class FilerPeer(BTPeer):
 
 
     #--------------------------------------------------------------------------
-    def handle_qresponse(self, peerconn, data):
+    def __handle_qresponse(self, peerconn, data):
     #--------------------------------------------------------------------------
 	""" Handles the QRESPONSE message type. The message data should be
 	in the format of a string, "file-name  peer-id", where file-name is
@@ -219,7 +217,7 @@ class FilerPeer(BTPeer):
 
 
     #--------------------------------------------------------------------------
-    def handle_fileget(self, peerconn, data):
+    def __handle_fileget(self, peerconn, data):
     #--------------------------------------------------------------------------
 	""" Handles the FILEGET message type. The message data should be in
 	the format of a string, "file-name", where file-name is the name
@@ -250,7 +248,7 @@ class FilerPeer(BTPeer):
 
 
     #--------------------------------------------------------------------------
-    def handle_quit(self, peerconn, data):
+    def __handle_quit(self, peerconn, data):
     #--------------------------------------------------------------------------
 	""" Handles the QUIT message type. The message data should be in the
 	format of a string, "peer-id", where peer-id is the canonical

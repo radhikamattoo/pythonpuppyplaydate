@@ -25,6 +25,7 @@ class BTGui(Frame):
       self.btpeer = FilerPeer( maxpeers, serverport )
 
       self.bind( "<Destroy>", self.__onDestroy )
+
       host,port = firstpeer.split(':')
       self.btpeer.buildpeers( host, int(port), hops=hops )
       self.updatePeerList()
@@ -210,6 +211,7 @@ def main():
    if len(sys.argv) < 4:
       print "Syntax: %s server-port max-peers peer-ip:port" % sys.argv[0]
       sys.exit(-1)
+
    serverport = int(sys.argv[1])
    maxpeers = sys.argv[2]
    peerid = sys.argv[3]

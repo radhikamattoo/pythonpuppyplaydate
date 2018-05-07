@@ -22,10 +22,17 @@ Requests to be added to target node's friend list.
 Requests information about target node's dog.
 
 ## QUER *dogdata*
-Asks node if they are the owner of the specified dog.
+Asks node if they own the specified dog. If not, the query will be propagated to
+connected peers.
 
-## MEET *location* *date* *time*
+## QRES
+Responds to a user query about a dog.
+
+## MEET *peerid* *location* *date* *time*
 Asks target node if they'd like to meet at specified time/date/location.
+
+# MREP
+User can reply `Yes` or `No` to a pending meetup request by another user. 
 
 ## REPL *msg*
 Response for any of the above messages, with specific payload.
