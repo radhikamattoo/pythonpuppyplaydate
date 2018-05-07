@@ -37,11 +37,12 @@ class FilerPeer(BTPeer):
 	BTPeer.__init__(self, maxpeers, serverport)
 
 	self.files = {}  # available files: name --> peerid mapping
+
 	self.addrouter(self.__router)
 
-	handlers = {LISTPEERS : self.__handle_listpeers,
-		    INSERTPEER : self.__handle_insertpeer,
-		    PEERNAME: self.__handle_peername,
+	handlers = {LISTPEERS : self.handle_listpeers,
+		    INSERTPEER : self.handle_insertpeer,
+		    PEERNAME: self.handle_peername,
 		    QUERY: self.__handle_query,
 		    QRESPONSE: self.__handle_qresponse,
 		    FILEGET: self.__handle_fileget,

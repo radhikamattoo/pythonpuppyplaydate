@@ -6,15 +6,26 @@ import threading
 from Tkinter import *
 from random import *
 
-from filergui import *
 from puppyplaydate import *
+
+#INFO: request id of node
+#LIST: request list of known dogs from node
+#ADDF: request to add themself to known peers for node
+#DINF: request target node's dog info
+#QUER: request target node to search their known dogs for matching params
+#QRES: responding to query
+#MEET: request to meet target node
+#MREP: responding to meet request
+#REPL: generic reply
+#ERRO: generic error message
+
 
 class PuppyPlaydateGui(Frame):
     def __init__(self, firstpeer, hops=2, maxpeers=5, serverport=3000, master=None):
         Frame.__init__( self, master )
         self.grid()
         self.createWidgets()
-        self.master.title( "Puppy Playdate Filer %d" % serverport )
+        self.master.title( "Puppy Playdate %d" % serverport )
         self.btpeer = PuppyPlaydate( maxpeers, serverport )
 
         self.bind( "<Destroy>", self.__onDestroy )
@@ -47,33 +58,58 @@ class PuppyPlaydateGui(Frame):
       if self.dogList.size() > 0:
          self.dogList.delete(0, self.dogList.size() - 1)
       for f in self.btpeer.dogs:
-         p = self.btpeer.dogs[f]
-         if not p:
-            p = '(local)'
+         p = JSON.dumps(self.btpeer.dogs[f])
+         if f == self.btpeer.myid:
+            p += '(local)'
          self.dogList.insert( END, "%s:%s" % (f,p) )
 
     def createWidgets( self ):
       """
       Set up the frame widgets
       """
+      meetupFrame = Frame(self)
       dogFrame = Frame(self)
       peerFrame = Frame(self)
 
+      meetupReplyFrame = Frame(self)
       rebuildFrame = Frame(self)
       searchFrame = Frame(self)
       adddogFrame = Frame(self)
       pbFrame = Frame(self)
 
-      dogFrame.grid(row=0, column=0, sticky=N+S)
-      peerFrame.grid(row=0, column=1, sticky=N+S)
-      pbFrame.grid(row=2, column=1)
-      adddogFrame.grid(row=3)
-      searchFrame.grid(row=4)
-      rebuildFrame.grid(row=3, column=1)
+      meetupFrame.grid(row=0, column=0, sticky=N+S)
+      dogFrame.grid(row=0, column=1, sticky=N+S)
+      peerFrame.grid(row=0, column=2, sticky=N+S)
+      pbFrame.grid(row=2, column=2)
+      meetupReplyFrame.grid(row=3, column=0)
+      adddogFrame.grid(row=3, column=1)
+      searchFrame.grid(row=4, column=1)
+      rebuildFrame.grid(row=3, column=2)
 
+      Label( meetupFrame, text='Meetup Requests' ).grid()
       Label( dogFrame, text='Known Dogs' ).grid()
-      Label( peerFrame, text='Peer List' ).grid()
+      Label( peerFrame, text='Online Peers' ).grid()
 
+      # MEETUP LIST
+      meetupListFrame = Frame(meetupFrame)
+      meetupListFrame.grid(row=1, column=0)
+      meetupScroll = Scrollbar( meetupListFrame, orient=VERTICAL)
+      meetupScroll.grid(row=0, column=1, sticky=N+S)
+
+      self.meetupList = Listbox(meetupListFrame, height=5,
+                                yscrollcommand=meetupScroll.set)
+      self.meetupList.grid(row=0, column=0, sticky=N+S)
+      meetupScroll["command"] = self.meetupList.yview
+
+      self.meetupYes = Button(meetupReplyFrame, text='Yes',
+                             command=self.onYes, padx=45)
+      self.meetupYes.grid(row=0, column=0)
+
+      self.meetupNo = Button(meetupReplyFrame, text='No',
+                       command=self.onNo, padx=45)
+      self.meetupNo.grid(row=0, column=1)
+
+      # DOG LIST
       dogListFrame = Frame(dogFrame)
       dogListFrame.grid(row=1, column=0)
       dogScroll = Scrollbar( dogListFrame, orient=VERTICAL )
@@ -81,26 +117,22 @@ class PuppyPlaydateGui(Frame):
 
       self.dogList = Listbox(dogListFrame, height=5,
                         yscrollcommand=dogScroll.set)
-      #self.dogList.insert( END, 'a', 'b', 'c', 'd', 'e', 'f', 'g' )
       self.dogList.grid(row=0, column=0, sticky=N+S)
       dogScroll["command"] = self.dogList.yview
 
-      self.fetchButton = Button( dogFrame, text='Fetch',
-                           command=self.onFetch)
-      self.fetchButton.grid()
-
-      self.adddogEntry = Entry(adddogFrame, width=25)
-      self.adddogButton = Button(adddogFrame, text='Add',
+      self.adddogEntry = Entry(adddogFrame, width=20)
+      self.adddogButton = Button(adddogFrame, text='Add Dog',
                            command=self.onAdd)
       self.adddogEntry.grid(row=0, column=0)
       self.adddogButton.grid(row=0, column=1)
 
-      self.searchEntry = Entry(searchFrame, width=25)
-      self.searchButton = Button(searchFrame, text='Search',
+      self.searchEntry = Entry(searchFrame, width=20)
+      self.searchButton = Button(searchFrame, text=' Search  ',
                            command=self.onSearch)
       self.searchEntry.grid(row=0, column=0)
       self.searchButton.grid(row=0, column=1)
 
+      # PEER LIST
       peerListFrame = Frame(peerFrame)
       peerListFrame.grid(row=1, column=0)
       peerScroll = Scrollbar( peerListFrame, orient=VERTICAL )
@@ -117,8 +149,8 @@ class PuppyPlaydateGui(Frame):
       self.refreshButton = Button( pbFrame, text = 'Refresh',
                             command=self.onRefresh )
 
-      self.rebuildEntry = Entry(rebuildFrame, width=25)
-      self.rebuildButton = Button( rebuildFrame, text = 'Rebuild',
+      self.rebuildEntry = Entry(rebuildFrame, width=15)
+      self.rebuildButton = Button( rebuildFrame, text = 'Add Peer',
                             command=self.onRebuild )
       self.removeButton.grid(row=0, column=0)
       self.refreshButton.grid(row=0, column=1)
@@ -143,19 +175,23 @@ class PuppyPlaydateGui(Frame):
          self.btpeer.sendtopeer( p,
                                  QUERY, "%s %s 4" % ( self.btpeer.myid, key ) )
 
+    def onYes(self):
+        print "Yes"
+    def onNo(self):
+        print "No"
 
-    def onFetch(self):
-      sels = self.dogList.curselection()
-      if len(sels)==1:
-         sel = self.dogList.get(sels[0]).split(':')
-         if len(sel) > 2:  # fname:host:port
-            fname,host,port = sel
-            resp = self.btpeer.connectandsend( host, port, FILEGET, fname )
-            if len(resp) and resp[0][0] == REPLY:
-               fd = file( fname, 'w' )
-               fd.write( resp[0][1] )
-               fd.close()
-               self.btpeer.files[fname] = None  # because it's local now
+    # def onFetch(self):
+    #   sels = self.dogList.curselection()
+    #   if len(sels)==1:
+    #      sel = self.dogList.get(sels[0]).split(':')
+    #      if len(sel) > 2:  # fname:host:port
+    #         fname,host,port = sel
+    #         resp = self.btpeer.connectandsend( host, port, FILEGET, fname )
+    #         if len(resp) and resp[0][0] == REPLY:
+    #            fd = file( fname, 'w' )
+    #            fd.write( resp[0][1] )
+    #            fd.close()
+    #            self.btpeer.files[fname] = None  # because it's local now
 
 
     def onRemove(self):

@@ -13,7 +13,7 @@ Big thank you to [Nabdeem Adbdul Hamid](http://cs.berry.edu/~nhamid/p2p/index.ht
 Queries for information of the target node.
 
 ## LIST
-Queries for the friend list of the target node.
+Queries for the dog list of the target node.
 
 ## ADDF
 Requests to be added to target node's friend list.
@@ -32,7 +32,7 @@ Responds to a user query about a dog.
 Asks target node if they'd like to meet at specified time/date/location.
 
 # MREP
-User can reply `Yes` or `No` to a pending meetup request by another user. 
+User can reply `Yes` or `No` to a pending meetup request by another user.
 
 ## REPL *msg*
 Response for any of the above messages, with specific payload.
