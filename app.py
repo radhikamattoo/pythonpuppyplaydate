@@ -164,12 +164,15 @@ class PuppyPlaydateGui(Frame):
 
 
     def onSearch(self):
-      key = self.searchEntry.get()
-      self.searchEntry.delete( 0, len(key) )
+      data = self.searchEntry.get()
+      print "Searching for ", data
+      self.searchEntry.delete( 0, len(data) )
 
       for p in self.btpeer.getpeerids():
+         print "Sending search query to:", p
          self.btpeer.sendtopeer( p,
-                                 QUERY, "%s %s 4" % ( self.btpeer.myid, key ) )
+                                 QUERY, "%s %s" % ( self.btpeer.myid, data ) )
+
 
     def onYes(self):
         print "Yes"
@@ -194,7 +197,7 @@ class PuppyPlaydateGui(Frame):
       sels = self.peerList.curselection()
       if len(sels)==1:
          peerid = self.peerList.get(sels[0])
-         self.btpeer.sendtopeer( peerid, PEERQUIT, self.btpeer.myid )
+         self.btpeer.sendtopeer( peerid, QUIT, self.btpeer.myid )
          self.btpeer.removepeer( peerid )
 
 
