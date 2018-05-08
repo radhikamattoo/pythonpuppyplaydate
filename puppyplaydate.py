@@ -7,35 +7,28 @@ import json
 LISTPEERS = "LIST"
 ADDFRIEND = "ADDF"
 INFO = "INFO"
-DOGINFO = "DINF"
-DINFOREPLY = "DREP"
 MEET = "MEET"
 MEETREPLY = "MREP"
-REPLY = "REPLY"
 QUERY = "QUER"
 QRESP = "QRES"
-ERROR = "ERRO"
 QUIT = "QUIT"
+REPLY="REPL"
+ERROR="ERRO"
 
-## TODO:
-## Implement the DINFOREPLY message 
-## Double check functionality with lists inside of self.dog
-## Connection between nodes isn't perfect, test it
-
+## TODO: Implement List Peers functionality in another GUI box?
+## Comment/cleanup code, update README, delete unneeded files
 
 class PuppyPlaydate(BTPeer):
     def __init__(self, maxpeers, serverport):
     	BTPeer.__init__(self, maxpeers, serverport)
 
-        self.meetups = {} # Requested meetup dates, user can reply Y or N or nothing at all.
-    	self.dogs = {}  # Known dogs in format of { peerid: {owner, name, age, breed}, ...}
+        self.meetups = {} # Requested and Sent meetup information
+    	self.dogs = {}  # Known dogs in format of { peerid: [{owner, name, age, breed}, ...]}
 
     	self.addrouter(self.__router)
     	handlers = {LISTPEERS : self.handle_listpeers,
     		    ADDFRIEND : self.handle_insertpeer,
     		    INFO: self.handle_peername,
-                DOGINFO: self.handle_doginfo,
-                DINFOREPLY: self.handle_doginfo_reply
     		    MEET: self.handle_meet,
                 MEETREPLY: self.handle_meet_reply,
                 QRESP: self.handle_qresponse,
@@ -76,7 +69,6 @@ class PuppyPlaydate(BTPeer):
     	self.peerlock.acquire()
     	try:
     	    try:
-                self.__debug('hello')
                 peerid,host,port = data.split()
                 if self.maxpeersreached():
         		    self.__debug('maxpeers %d reached: connection terminating'
@@ -101,21 +93,15 @@ class PuppyPlaydate(BTPeer):
     def handle_peername(self, peerconn, data):
         peerconn.senddata(REPLY, self.myid)
 
-    def __debug(self, msg):
-    	if self.debug:
-    	    btdebug(msg)
-
     def buildpeers(self, host, port, hops):
     	if self.maxpeersreached() or not hops:
     	    return
-
     	peerid = None
     	self.__debug("Building peers from (%s,%s)" % (host,port))
 
     	try:
     	    _, peerid = self.connectandsend(host, port, INFO, '')[0]
     	    self.__debug("contacted " + peerid)
-            print "Successfully contacted peer in puppyplaydate.py"
     	    resp = self.connectandsend(host, port, ADDFRIEND,
     					'%s %s %d' % (self.myid,
     						      self.serverhost,
@@ -129,23 +115,17 @@ class PuppyPlaydate(BTPeer):
     		traceback.print_exc()
     	    self.removepeer(peerid)
 
-    def __router(self, peerid):
-    	if peerid not in self.getpeerids():
-    	    return (None, None, None)
-    	else:
-    	    rt = [peerid]
-    	    rt.extend(self.peers[peerid])
-    	    return rt
-
     def addlocaldog(self, data):
         """
         Adds new dog info, should be following structure:
         owner:name:breed:age
         """
         owner, name, breed, age = data.split()
-        if not isinstance(self.dogs[self.myid], (list,)):
+        try:
+            self.dogs[self.myid].append({'owner': owner, 'name': name, 'breed': breed, 'age': age})
+        except:
             self.dogs[self.myid] = []
-        self.dogs[self.myid].append({'owner': owner, 'name': name, 'breed': breed, 'age': age})
+            self.dogs[self.myid].append({'owner': owner, 'name': name, 'breed': breed, 'age': age})
 
     def handle_query(self, peerconn, data):
         """
@@ -155,10 +135,8 @@ class PuppyPlaydate(BTPeer):
         Data should be in following format:
             returnPID owner name breed age
         """
-        print "Handling query", data
         try:
             ret_pid, owner, name, breed, age = data.split()
-            print "Processing full query"
             t = threading.Thread(target=self.process_full_query, args=[ret_pid, owner, name, breed, age])
             t.start()
         except:
@@ -167,43 +145,55 @@ class PuppyPlaydate(BTPeer):
                 t = threading.Thread(target=self.process_owner_query, args=[ret_pid, owner])
                 t.start()
             except:
-                peerconn.senddata(ERROR, 'Invalid query')
+                ret_pid = data
+                t = threading.Thread(target=self.process_peerid_query, args=[peerconn, ret_pid])
+                t.start()
 
     def process_full_query(self, ret_pid, owner, name, breed, age):
-        print "Full query"
-        data = ' '.join([owner, name, breed, age])
         for peerid, dogList in self.dogs.iteritems():
             for dog in dogList:
                 if owner == dog['owner'] and name == dog['name'] and breed == dog['breed'] and age == dog['age']:
                     host, port = ret_pid.split(":")
-                    data = peerid + ' ' + data
-                    self.connectandsend(host, int(port), QRESP, data, pid=ret_pid)
+                    data = { peerid: dogList }
+                    self.connectandsend(host, int(port), QRESP, json.dumps(data, encoding='utf-8'), pid=ret_pid)
                     return
         # Dog not found in known dogs, propagate to peers
         for next in self.getpeerids():
             data = ret_pid + ' ' + data
             self.sendtopeer(next, QUERY, data)
 
+    def process_peerid_query(self, peerconn, ret_pid):
+        host, port = ret_pid.split(':')
+        try:
+            data = { self.myid: self.dogs[self.myid] }
+        except:
+            data = { self.myid: [] }
+        self.connectandsend(host, int(port), QRESP, json.dumps(data, encoding='utf-8'), pid=ret_pid)
+
     def process_owner_query(self, ret_pid, owner):
-        print "Owner query"
         for peerid, dogList in self.dogs.iteritems():
-            dog = dogList[0]
-            if owner == dog['owner']:
-                host, port = ret_pid.split(':')
-                data = ' '.join([peerid, dog['owner'], dog['name'], dog['breed'], dog['age']])
-                self.connectandsend(host, int(port), QRESP, data, pid=ret_pid)
-                return
+            for dog in dogList:
+                if owner == dog['owner']: #send back all dogs
+                    host, port = ret_pid.split(':')
+                    data = { peerid: dogList }
+                    self.connectandsend(host, int(port), QRESP, json.dumps(data, encoding='utf-8'), pid=ret_pid)
+                    return
         # Owner not found in known dogs, propagate to peers
         for next in self.getpeerids():
             self.sendtopeer(next, QUERY, '%s:%s' % (ret_pid, owner))
 
     def handle_qresponse(self, peerconn, data):
         try:
-            peerid, owner, name, breed, age = data.split()
-            dog =  { 'owner': owner, 'name': name, 'breed': breed, 'age': age }
-            if not isinstance(self.dogs[peerid], (list,)):
-                self.dogs[peerid] = []
-            self.dogs[peerid].append(dog)
+            data = json.loads(data) #{peerid: [{}, {}]}
+            peerid = next(iter(data))
+            dogList = data[peerid] #[{}, {}]
+            self.dogs[peerid] = []
+            for dog in dogList:
+                dog['owner'] = dog['owner'].encode('ascii', 'replace')
+                dog['name'] = dog['name'].encode('ascii', 'replace')
+                dog['breed'] = dog['breed'].encode('ascii', 'replace')
+                dog['age'] = dog['age'].encode('ascii', 'replace')
+                self.dogs[peerid].append({'owner': dog['owner'], 'name': dog['name'], 'breed': dog['breed'], 'age': dog['age']})
         except:
             self._debug('Error handling query response.')
 
@@ -223,8 +213,6 @@ class PuppyPlaydate(BTPeer):
         If Yes, change the corresponding request's 'Accepted' parameter to True
         If No, change the corresponding request's 'Accepted' parameter to False
         """
-        # FIXME: Indexing error
-        print "Updating meetup for ", self.myid
         toId, answer = data.split()
         for fromId in self.meetups:
             if self.meetups[fromId]['to'] == toId:
@@ -233,15 +221,14 @@ class PuppyPlaydate(BTPeer):
                 else:
                     self.meetups[fromId]['accepted'] = False
 
-    def handle_doginfo(self, peerconn, data):
-        """
-        Handles request for all target node's dogs
-        """
-        dogs = []
-        for peerid, dog in self.dogs.iteritems():
-            if peerid == self.myid:
-                dogs.append({peerid:dog})
-        peerconn.senddata(DINFOREPLY, json.dumps(dogs))
+    def __router(self, peerid):
+    	if peerid not in self.getpeerids():
+    	    return (None, None, None)
+    	else:
+    	    rt = [peerid]
+    	    rt.extend(self.peers[peerid])
+    	    return rt
 
-    def handle_doginfo_reply(self, perconn, data):
-        dogs = json.loads(data)
+    def __debug(self, msg):
+    	if self.debug:
+    	    btdebug(msg)

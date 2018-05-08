@@ -12,18 +12,15 @@ Big thank you to [Nabdeem Adbdul Hamid](http://cs.berry.edu/~nhamid/p2p/index.ht
 ## INFO
 Queries for information of the target node.
 
-## LIST
-Queries for the dog list of the target node.
-
 ## ADDF
-Requests to be added to target node's friend list.
+Requests to be added to target node's list of known peers.
 
-## DINF
-Requests information about target node's dog.
+## QUER <*dogdata*>
+1. Query a node and all its peers for a dog by passing in: `owner, name, breed, age`
+2. Query a node and all its peers with just the owner to get all of their dogs: `owner`
+3. Query a direct peer for all of its dogs
 
-## QUER *dogdata*
-Asks node if they own the specified dog. If not, the query will be propagated to
-connected peers.
+All of these queries will return the full list of dogs from the peer that has the information.
 
 ## QRES
 Responds to a user query about a dog.
@@ -32,10 +29,7 @@ Responds to a user query about a dog.
 Asks target node if they'd like to meet at specified time/date/location.
 
 # MREP
-User can reply `Yes` or `No` to a pending meetup request by another user.
+User can reply `Yes` or `No` using the GUI to a pending meetup request by another user.
 
-## REPL *msg*
-Response for any of the above messages, with specific payload.
-
-## ERRO
-Generic error response for any of the above messages, with specific payload.
+# QUIT
+Node wants to disconnect from a peer's network, or 'unfriend' the specified peer.
