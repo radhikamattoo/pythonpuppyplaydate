@@ -3,22 +3,21 @@
 from btpeer import *
 import json
 
-# Define message types
-LISTPEERS = "LIST"
+# PuppyPlaydate message types
 GETPEERS="GPER"
 GETREPL="GREP"
 ADDFRIEND = "ADDF"
-INFO = "INFO"
 MEET = "MEET"
 MEETREPLY = "MREP"
 QUERY = "QUER"
 QRESP = "QRES"
+
+# Underlying required message types
+INFO = "INFO"
+LISTPEERS = "LIST"
 QUIT = "QUIT"
 REPLY="REPL"
 ERROR="ERRO"
-
-## TODO: Implement List Peers functionality in another GUI box?
-## Comment/cleanup code, update README, delete unneeded files
 
 class PuppyPlaydate(BTPeer):
     def __init__(self, maxpeers, serverport):
@@ -63,32 +62,35 @@ class PuppyPlaydate(BTPeer):
     	    self.peerlock.release()
 
     def handle_listpeers(self, peerconn, data):
-	""" Handles the LISTPEERS message type. Message data is not used. """
-	self.peerlock.acquire()
-	try:
-	    self.__debug('Listing peers %d' % self.numberofpeers())
-	    peerconn.senddata(REPLY, '%d' % self.numberofpeers())
-	    for pid in self.getpeerids():
-		host,port = self.getpeer(pid)
-		peerconn.senddata(REPLY, '%s %s %d' % (pid, host, port))
-	finally:
-	    self.peerlock.release()
+    	""" Handles the LISTPEERS message type. Message data is not used.
+        """
+    	self.peerlock.acquire()
+    	try:
+    	    self.__debug('Listing peers %d' % self.numberofpeers())
+    	    peerconn.senddata(REPLY, '%d' % self.numberofpeers())
+    	    for pid in self.getpeerids():
+    		host,port = self.getpeer(pid)
+    		peerconn.senddata(REPLY, '%s %s %d' % (pid, host, port))
+    	finally:
+    	    self.peerlock.release()
 
     def handle_getpeers(self, peerconn, data):
         """
         Lists all of a target node's known peers
         """
-        print "HANDLING LISTPEERS REQUEST"
-    	self.peerlock.acquire()
-    	try:
+        self.peerlock.acquire()
+        try:
             print "Sending back", self.getpeerids()
             host, port = data.split(':')
             self.connectandsend(host, port, GETREPL, json.dumps(self.getpeerids()))
-    	finally:
-    	    self.peerlock.release()
+        finally:
+            self.peerlock.release()
 
     def handle_getpeers_reply(self, peerconn, data):
-        print "HANDLING LISTPEERS REPLY"
+        """
+        Handles GREP message - adds all the peers returned from the target
+        node to its own peerlist
+        """
         self.peerlock.acquire()
     	try:
     	    try:
@@ -117,6 +119,9 @@ class PuppyPlaydate(BTPeer):
     	    self.peerlock.release()
 
     def handle_insertpeer(self, peerconn, data):
+        """
+        Handles inserting a peer into node's known peers list
+        """
     	self.peerlock.acquire()
     	try:
     	    try:
@@ -145,6 +150,9 @@ class PuppyPlaydate(BTPeer):
         peerconn.senddata(REPLY, self.myid)
 
     def buildpeers(self, host, port, hops):
+        """
+        Will add first-level peers to known peers list (NON-RECURSIVE)
+        """
     	if self.maxpeersreached() or not hops:
     	    return
     	peerid = None
@@ -183,7 +191,7 @@ class PuppyPlaydate(BTPeer):
     def addlocaldog(self, data):
         """
         Adds new dog info, should be following structure:
-        owner:name:breed:age
+        owner name breed age
         """
         owner, name, breed, age = data.split()
         try:
@@ -198,7 +206,9 @@ class PuppyPlaydate(BTPeer):
         and will check if their dog matches the sent data,
         else will propagate the message to immediate neighbors.
         Data should be in following format:
-            returnPID owner name breed age
+            returnPID owner name breed age OR
+            owner                          OR
+            ret_pid
         """
         try:
             ret_pid, owner, name, breed, age = data.split()
@@ -215,6 +225,10 @@ class PuppyPlaydate(BTPeer):
                 t.start()
 
     def process_full_query(self, ret_pid, owner, name, breed, age):
+        """
+        Process a search QUERY that contains full dog information:
+        owner name breed age
+        """
         for peerid, dogList in self.dogs.iteritems():
             for dog in dogList:
                 if owner == dog['owner'] and name == dog['name'] and breed == dog['breed'] and age == dog['age']:
@@ -228,6 +242,11 @@ class PuppyPlaydate(BTPeer):
             self.sendtopeer(next, QUERY, data)
 
     def process_peerid_query(self, peerconn, ret_pid):
+        """
+        Processes query asking for directly connected node's dogs they own
+        """
+        # FIXME: ValueError: too many values to unpack on 250
+        print ret_pid
         host, port = ret_pid.split(':')
         try:
             data = { self.myid: self.dogs[self.myid] }
@@ -236,6 +255,9 @@ class PuppyPlaydate(BTPeer):
         self.connectandsend(host, int(port), QRESP, json.dumps(data, encoding='utf-8'), pid=ret_pid)
 
     def process_owner_query(self, ret_pid, owner):
+        """
+        Processes query with just an owner's name
+        """
         for peerid, dogList in self.dogs.iteritems():
             for dog in dogList:
                 if owner == dog['owner']: #send back all dogs
@@ -248,6 +270,9 @@ class PuppyPlaydate(BTPeer):
             self.sendtopeer(next, QUERY, '%s:%s' % (ret_pid, owner))
 
     def handle_qresponse(self, peerconn, data):
+        """
+        Handles the different responses possible from the 3 query types
+        """
         try:
             data = json.loads(data) #{peerid: [{}, {}]}
             peerid = next(iter(data))

@@ -28,13 +28,7 @@ class PuppyPlaydateGui(Frame):
         #      self.btpeer.startstabilizer( self.onRefresh, 3 )
         self.after( 3000, self.onTimer )
 
-    def onTimer(self):
-        self.onRefresh()
-        self.after( 3000, self.onTimer )
-
-    def __onDestroy(self, event):
-        self.btpeer.shutdown = True
-
+#----------------------------GUI/GUI UPDATE FUNCTIONS---------------------------
     def updatePeerList( self ):
       if self.peerList.size() > 0:
          self.peerList.delete(0, self.peerList.size() - 1)
@@ -156,20 +150,31 @@ class PuppyPlaydateGui(Frame):
       self.meetupRequestButton.grid(row=1,column=1)
       self.rebuildEntry.grid(row=2, column=0)
       self.rebuildButton.grid(row=2, column=1)
+#-------------------------------------------------------------------------------
 
+#----------------------------BUTTON FUNCTIONS-----------------------------------
     def onRequestPeers(self):
+        """
+        Invoked when 'Get Peers' button is clicked
+        """
         selection = self.peerList.curselection()
         if len(selection) == 1:
             peerid = self.peerList.get(selection[0])
             self.btpeer.sendtopeer( peerid, GETPEERS, "%s" % ( self.btpeer.myid) )
 
     def onRequestDogs(self):
+        """
+        Invoked when 'Get Dog Info' button is clicked
+        """
         selection = self.peerList.curselection()
         if len(selection) == 1:
             peerid = self.peerList.get(selection[0])
             self.btpeer.sendtopeer( peerid, QUERY, "%s" % ( self.btpeer.myid) )
 
     def onYes(self):
+        """
+        Invoked when 'Yes' button is clicked and a meetup is highlighted
+        """
         selection = self.meetupList.curselection()
         if len(selection) == 1:
             meetup_data = json.loads(self.meetupList.get(selection[0]).lstrip().rstrip())
@@ -181,6 +186,9 @@ class PuppyPlaydateGui(Frame):
                                         '%s %s' % (self.btpeer.myid, 'Yes'))
 
     def onNo(self):
+        """
+        Invoked when 'No' button is clicked and a meetup is highlighted
+        """
         selection = self.meetupList.curselection()
         if len(selection) == 1:
             meetup_data = json.loads(self.meetupList.get(selection[0]).lstrip().rstrip())
@@ -192,6 +200,10 @@ class PuppyPlaydateGui(Frame):
                                         '%s %s' % (self.btpeer.myid, 'No'))
 
     def onMeetupRequest(self):
+        """
+        Invoked when 'Request Meetup' button is clicked, given there is
+        valid meetup data in the corresponding Entry
+        """
         sels = self.peerList.curselection()
         if len(sels)==1:
             # Send request to target node
@@ -212,6 +224,10 @@ class PuppyPlaydateGui(Frame):
                 self.updateMeetupList()
 
     def onAdd(self):
+      """
+      Invoked when the 'Add Dog' button is clicked, given there is valid
+      dog data in the corresponding Entry
+      """
       dog = self.adddogEntry.get()
       if dog.lstrip().rstrip():
          dogInfo = dog.lstrip().rstrip()
@@ -220,6 +236,10 @@ class PuppyPlaydateGui(Frame):
       self.updateDogList()
 
     def onSearch(self):
+      """
+      Invoked when the 'Search' button is clicked, given there is valid
+      search data in the corresponding Entry
+      """
       data = self.searchEntry.get()
       self.searchEntry.delete( 0, len(data) )
 
@@ -228,11 +248,23 @@ class PuppyPlaydateGui(Frame):
                                  QUERY, "%s %s" % ( self.btpeer.myid, data ) )
 
     def onRemove(self):
+      """
+      Invoked when the 'Remove' button is clicked, and there is a peer highlighted.
+      """
       sels = self.peerList.curselection()
       if len(sels)==1:
          peerid = self.peerList.get(sels[0])
          self.btpeer.sendtopeer( peerid, QUIT, self.btpeer.myid )
          self.btpeer.removepeer( peerid )
+#-------------------------------------------------------------------------------
+
+#----------------------------HELPER FUNCTIONS-----------------------------------
+    def onTimer(self):
+        self.onRefresh()
+        self.after( 3000, self.onTimer )
+
+    def __onDestroy(self, event):
+        self.btpeer.shutdown = True
 
     def onRefresh(self):
       self.updatePeerList()
@@ -253,6 +285,7 @@ class PuppyPlaydateGui(Frame):
                traceback.print_exc()
     #         for peerid in self.btpeer.getpeerids():
     #            host,port = self.btpeer.getpeer( peerid )
+#-------------------------------------------------------------------------------
 
 if __name__ == '__main__':
    if len(sys.argv) < 4:
