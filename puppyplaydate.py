@@ -39,6 +39,10 @@ class PuppyPlaydate(BTPeer):
     	    self.addhandler(mt, handlers[mt])
 
     def handle_quit(self, peerconn, data):
+        """
+        Handles a peer trying to disconnect from a target node's network,
+        aka 'unfriending' them.
+        """
     	self.peerlock.acquire()
     	try:
     	    peerid = data.lstrip().rstrip()
@@ -55,6 +59,9 @@ class PuppyPlaydate(BTPeer):
     	    self.peerlock.release()
 
     def handle_listpeers(self, peerconn, data):
+        """
+        Lists all of a target node's known peers 
+        """
     	self.peerlock.acquire()
     	try:
     	    self.__debug('Listing peers %d' % self.numberofpeers())

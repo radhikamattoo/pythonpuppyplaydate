@@ -65,8 +65,7 @@ class PuppyPlaydateGui(Frame):
 
       meetupReplyFrame = Frame(self)
       rebuildFrame = Frame(self)
-      searchFrame = Frame(self)
-      adddogFrame = Frame(self)
+      belowdogFrame = Frame(self)
       pbFrame = Frame(self)
       meetupRequestFrame = Frame(self)
 
@@ -74,9 +73,8 @@ class PuppyPlaydateGui(Frame):
       dogFrame.grid(row=0, column=1, sticky=N+S)
       peerFrame.grid(row=0, column=2, sticky=N+S)
       pbFrame.grid(row=3, column=2)
-      meetupReplyFrame.grid(row=3, column=0)
-      adddogFrame.grid(row=3, column=1)
-      searchFrame.grid(row=4, column=1)
+      meetupReplyFrame.grid(row=4, column=0)
+      belowdogFrame.grid(row=4, column=1)
       rebuildFrame.grid(row=4, column=2)
 
       Label( meetupFrame, text='Meetup Requests' ).grid()
@@ -113,17 +111,17 @@ class PuppyPlaydateGui(Frame):
       self.dogList.grid(row=0, column=0, sticky=N+S)
       dogScroll["command"] = self.dogList.yview
 
-      self.adddogEntry = Entry(adddogFrame, width=25)
-      self.adddogButton = Button(adddogFrame, text='Add Dog',
+      self.adddogEntry = Entry(belowdogFrame, width=25)
+      self.adddogButton = Button(belowdogFrame, text='Add Dog',
                            command=self.onAdd)
-      self.adddogEntry.grid(row=0, column=0)
-      self.adddogButton.grid(row=0, column=1)
+      self.adddogEntry.grid(row=1, column=0)
+      self.adddogButton.grid(row=1, column=1)
 
-      self.searchEntry = Entry(searchFrame, width=25)
-      self.searchButton = Button(searchFrame, text=' Search  ',
+      self.searchEntry = Entry(belowdogFrame, width=25)
+      self.searchButton = Button(belowdogFrame, text=' Search  ',
                            command=self.onSearch)
-      self.searchEntry.grid(row=0, column=0)
-      self.searchButton.grid(row=0, column=1)
+      self.searchEntry.grid(row=2, column=0)
+      self.searchButton.grid(row=2, column=1)
 
       # PEER LIST
       peerListFrame = Frame(peerFrame)
@@ -141,21 +139,26 @@ class PuppyPlaydateGui(Frame):
                                   command=self.onRemove )
       self.requestDogs = Button( pbFrame, text='Get Dog Info',
                                    command=self.onRequestDogs)
+      self.requestPeers = Button( pbFrame, text='Get Peers',
+                                   command=self.onRequestPeers)
 
-      self.meetupRequestEntry = Entry(pbFrame, width=25)
-      self.meetupRequestButton = Button(pbFrame, text='Request Meetup',
+      self.meetupRequestEntry = Entry(rebuildFrame, width=25)
+      self.meetupRequestButton = Button(rebuildFrame, text='Request Meetup',
                                         command=self.onMeetupRequest)
 
       self.rebuildEntry = Entry(rebuildFrame, width=25)
       self.rebuildButton = Button( rebuildFrame, text = 'Add Peer',
                             command=self.onRebuild, padx=35)
-
+      self.requestPeers.grid(row=0, column=2)
       self.requestDogs.grid(row=0, column=0)
       self.removeButton.grid(row=0, column=1)
       self.meetupRequestEntry.grid(row=1, column=0)
       self.meetupRequestButton.grid(row=1,column=1)
       self.rebuildEntry.grid(row=2, column=0)
       self.rebuildButton.grid(row=2, column=1)
+
+    def onRequestPeers(self):
+        print 'hello'
 
     def onRequestDogs(self):
         selection = self.peerList.curselection()
