@@ -5,6 +5,8 @@ import json
 
 # Define message types
 LISTPEERS = "LIST"
+GETPEERS="GPER"
+GETREPL="GREP"
 ADDFRIEND = "ADDF"
 INFO = "INFO"
 MEET = "MEET"
@@ -27,6 +29,8 @@ class PuppyPlaydate(BTPeer):
 
     	self.addrouter(self.__router)
     	handlers = {LISTPEERS : self.handle_listpeers,
+                GETPEERS: self.handle_getpeers,
+                GETREPL : self.handle_getpeers_reply,
     		    ADDFRIEND : self.handle_insertpeer,
     		    INFO: self.handle_peername,
     		    MEET: self.handle_meet,
@@ -59,16 +63,56 @@ class PuppyPlaydate(BTPeer):
     	    self.peerlock.release()
 
     def handle_listpeers(self, peerconn, data):
+	""" Handles the LISTPEERS message type. Message data is not used. """
+	self.peerlock.acquire()
+	try:
+	    self.__debug('Listing peers %d' % self.numberofpeers())
+	    peerconn.senddata(REPLY, '%d' % self.numberofpeers())
+	    for pid in self.getpeerids():
+		host,port = self.getpeer(pid)
+		peerconn.senddata(REPLY, '%s %s %d' % (pid, host, port))
+	finally:
+	    self.peerlock.release()
+
+    def handle_getpeers(self, peerconn, data):
         """
-        Lists all of a target node's known peers 
+        Lists all of a target node's known peers
         """
+        print "HANDLING LISTPEERS REQUEST"
     	self.peerlock.acquire()
     	try:
-    	    self.__debug('Listing peers %d' % self.numberofpeers())
-    	    peerconn.senddata(REPLY, '%d' % self.numberofpeers())
-    	    for pid in self.getpeerids():
-    		host,port = self.getpeer(pid)
-    		peerconn.senddata(REPLY, '%s %s %d' % (pid, host, port))
+            print "Sending back", self.getpeerids()
+            host, port = data.split(':')
+            self.connectandsend(host, port, GETREPL, json.dumps(self.getpeerids()))
+    	finally:
+    	    self.peerlock.release()
+
+    def handle_getpeers_reply(self, peerconn, data):
+        print "HANDLING LISTPEERS REPLY"
+        self.peerlock.acquire()
+    	try:
+    	    try:
+                peerList = json.loads(data) #[host:port, host:port]
+                if self.maxpeersreached():
+        		    self.__debug('maxpeers %d reached: connection terminating'
+        				  % self.maxpeers)
+        		    peerconn.senddata(ERROR, 'Join: too many peers')
+        		    return
+
+        		# peerid = '%s:%s' % (host,port)
+                for peerid in peerList:
+                    print peerid
+                    if peerid not in self.getpeerids() and peerid != self.myid:
+                        host,port = peerid.split(':')
+                        self.addpeer(peerid, host, port)
+                        print'added peer:' +peerid
+                        peerconn.senddata(REPLY, 'Join: peer added: %s' % peerid)
+                    else:
+            		    peerconn.senddata(ERROR, 'Join: peer already inserted %s'
+            				       % peerid)
+            except:
+        		self.__debug('invalid insert %s: %s' % (str(peerconn), data))
+        		peerconn.senddata(ERROR, 'Join: incorrect arguments')
     	finally:
     	    self.peerlock.release()
 
@@ -115,7 +159,21 @@ class PuppyPlaydate(BTPeer):
     						      self.serverport))[0]
     	    self.__debug(str(resp))
 
+            if (resp[0] != REPLY) or (peerid in self.getpeerids()):
+    		return
+
     	    self.addpeer(peerid, host, port)
+            #
+    	    # # do recursive depth first search to add more peers
+    	    # resp = self.connectandsend(host, port, LISTPEERS, '',
+    		# 			pid=peerid)
+    	    # if len(resp) > 1:
+    		# resp.reverse()
+    		# resp.pop()    # get rid of header count reply
+    		# while len(resp):
+    		#     nextpid,host,port = resp.pop()[1].split()
+    		#     if nextpid != self.myid:
+    		# 	self.buildpeers(host, port, hops - 1)
 
     	except:
     	    if self.debug:

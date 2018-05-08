@@ -158,7 +158,10 @@ class PuppyPlaydateGui(Frame):
       self.rebuildButton.grid(row=2, column=1)
 
     def onRequestPeers(self):
-        print 'hello'
+        selection = self.peerList.curselection()
+        if len(selection) == 1:
+            peerid = self.peerList.get(selection[0])
+            self.btpeer.sendtopeer( peerid, GETPEERS, "%s" % ( self.btpeer.myid) )
 
     def onRequestDogs(self):
         selection = self.peerList.curselection()
