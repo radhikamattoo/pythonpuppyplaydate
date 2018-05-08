@@ -1,9 +1,6 @@
-# This performs the under-the-hood logic for puppyplaydate, and
-# leverages the existing btfiler code to create handle different
-# message types
+# This performs the under-the-hood logic for puppyplaydate using btpeer
 
 from btpeer import *
-from btfiler import *
 import json
 
 # Define message types
@@ -22,20 +19,60 @@ class PuppyPlaydate(BTPeer):
     def __init__(self, maxpeers, serverport):
     	BTPeer.__init__(self, maxpeers, serverport)
         self.meetups = {} # Requested meetup dates, user can reply Y or N or nothing at all.
-    	self.dogs = {}  # Known dogs in format of { peerid: {name, age, breed}, ...}
+    	self.dogs = {}  # Known dogs in format of { peerid: {owner, name, age, breed}, ...}
 
     	self.addrouter(self.__router)
-    	handlers = {LISTPEERS : FilerPeer.handle_listpeers, # GOOD
-    		    ADDFRIEND : FilerPeer.handle_insertpeer, # GOOD
-    		    INFO: FilerPeer.handle_peername, # GOOD
-                DOGINFO: self.handle_doginfo, #GOOD
-    		    MEET: self.handle_meet, # GOOD
-                MEETREPLY: self.handle_meet_reply, # GOOD
-                QRESP: self.handle_qresponse, #MY OWN
-                QUERY: self.handle_query #MY OWN
+    	handlers = {LISTPEERS : self.handle_listpeers,
+    		    ADDFRIEND : self.handle_insertpeer,
+    		    INFO: self.handle_peername,
+                DOGINFO: self.handle_doginfo,
+    		    MEET: self.handle_meet,
+                MEETREPLY: self.handle_meet_reply,
+                QRESP: self.handle_qresponse,
+                QUERY: self.handle_query
     		   }
     	for mt in handlers:
     	    self.addhandler(mt, handlers[mt])
+
+    def handle_listpeers(self, peerconn, data):
+    	self.peerlock.acquire()
+    	try:
+    	    self.__debug('Listing peers %d' % self.numberofpeers())
+    	    peerconn.senddata(REPLY, '%d' % self.numberofpeers())
+    	    for pid in self.getpeerids():
+    		host,port = self.getpeer(pid)
+    		peerconn.senddata(REPLY, '%s %s %d' % (pid, host, port))
+    	finally:
+    	    self.peerlock.release()
+
+    def handle_insertpeer(self, peerconn, data):
+    	self.peerlock.acquire()
+    	try:
+    	    try:
+                self.__debug('hello')
+                peerid,host,port = data.split()
+                if self.maxpeersreached():
+        		    self.__debug('maxpeers %d reached: connection terminating'
+        				  % self.maxpeers)
+        		    peerconn.senddata(ERROR, 'Join: too many peers')
+        		    return
+
+        		# peerid = '%s:%s' % (host,port)
+                if peerid not in self.getpeerids() and peerid != self.myid:
+        		    self.addpeer(peerid, host, port)
+        		    print'added peer:' +peerid
+        		    peerconn.senddata(REPLY, 'Join: peer added: %s' % peerid)
+                else:
+        		    peerconn.senddata(ERROR, 'Join: peer already inserted %s'
+        				       % peerid)
+            except:
+        		self.__debug('invalid insert %s: %s' % (str(peerconn), data))
+        		peerconn.senddata(ERROR, 'Join: incorrect arguments')
+    	finally:
+    	    self.peerlock.release()
+
+    def handle_peername(self, peerconn, data):
+        peerconn.senddata(REPLY, self.myid)
 
     def __debug(self, msg):
 	if self.debug:
@@ -46,33 +83,33 @@ class PuppyPlaydate(BTPeer):
     	    return
 
     	peerid = None
-
     	self.__debug("Building peers from (%s,%s)" % (host,port))
 
     	try:
-    	    _, peerid = self.connectandsend(host, port, PEERNAME, '')[0]
-
+    	    _, peerid = self.connectandsend(host, port, INFO, '')[0]
     	    self.__debug("contacted " + peerid)
-    	    resp = self.connectandsend(host, port, INSERTPEER,
+            print "Successfully contacted peer in puppyplaydate.py"
+    	    resp = self.connectandsend(host, port, ADDFRIEND,
     					'%s %s %d' % (self.myid,
     						      self.serverhost,
     						      self.serverport))[0]
     	    self.__debug(str(resp))
-    	    if (resp[0] != REPLY) or (peerid in self.getpeerids()):
-    		return
+            print resp
+    	    # if (resp[0] != REPLY) or (peerid in self.getpeerids()):
+    		# return
 
     	    self.addpeer(peerid, host, port)
-
-    	    # do recursive depth first search to add more peers
-    	    resp = self.connectandsend(host, port, LISTPEERS, '',
-    					pid=peerid)
-    	    if len(resp) > 1:
-    		resp.reverse()
-    		resp.pop()    # get rid of header count reply
-    		while len(resp):
-    		    nextpid,host,port = resp.pop()[1].split()
-    		    if nextpid != self.myid:
-    			self.buildpeers(host, port, hops - 1)
+            # 
+    	    # # do recursive depth first search to add more peers
+    	    # resp = self.connectandsend(host, port, LISTPEERS, '',
+    		# 			pid=peerid)
+    	    # if len(resp) > 1:
+    		# resp.reverse()
+    		# resp.pop()    # get rid of header count reply
+    		# while len(resp):
+    		#     nextpid,host,port = resp.pop()[1].split()
+    		#     if nextpid != self.myid:
+    		# 	self.buildpeers(host, port, hops - 1)
     	except:
     	    if self.debug:
     		traceback.print_exc()
@@ -88,16 +125,13 @@ class PuppyPlaydate(BTPeer):
     	    return rt
 
 
-    def addlocaldog(self, dog):
+    def addlocaldog(self, data):
         """
         Adds new dog info, should be following structure:
-        {
-            name: string
-            breed: string
-            age: number
-        }
+        name:breed:age
         """
-        self.dog[self.myid] = dog
+        owner, name, breed, age = data.split(':')
+        self.dogs[self.myid] = {'owner': owner, 'name': name, 'breed': breed, 'age': age}
 
     def handle_query(self, peerconn, data):
         """
@@ -108,27 +142,42 @@ class PuppyPlaydate(BTPeer):
             returnPID name breed age
         """
         try:
-            ret_pid, name, breed, age = data.split()
+            ret_pid, owner, name, breed, age = data.split(':')
             peerconn.senddata(REPLY, 'Querying for: %s', data)
+            t = threading.Thread(target=self.process_query, args=[ret_pid, name, breed, age])
+            t.start()
         except:
-            peerconn.senddata(ERROR, 'Invalid query')
+            try:
+                ret_pid, owner = data.split(':')
+                t = threading.Thread(target=self.process_query, args=[ret_pid, owner])
+                t.start()
+            except:
+                peerconn.senddata(ERROR, 'Invalid query')
 
-        t = threading.Thread(target=self.process_query, args=[ret_pid, name, breed, age])
-        t.start()
 
-    def process_query(self, ret_pid, name, breed, age):
-        data = ' '.join([name, breed, age])
-        for peerid, dog in self.dogs.iteritems():
-            if name == dog.name and breed == dog.breed and age == dog.age:
-                host, port = ret_pid.split(":")
-                data = peerid + ' ' + data
-                self.connectandsend(host, int(port), QRESP, data, pid=ret_pid)
-                return
 
-        # Dog not found in known dogs, propagate to peers
-        for next in self.getpeerids():
-            data = ret_pid + data
-            self.sendtopeer(next, QUERY, data)
+    def process_query(self, ret_pid, owner, name=None, breed=None, age=None):
+        print "TODO: Process query"
+        # data = ''
+        # if name is not None:
+        #     data = ' '.join([name, breed, age])
+        #     for peerid, dog in self.dogs.iteritems():
+        #         if owner == dog.owner and name == dog.name
+        #         and breed == dog.breed and age == dog.age:
+        #             host, port = ret_pid.split(":")
+        #             data = peerid + ' ' + data
+        #             self.connectandsend(host, int(port), QRESP, data, pid=ret_pid)
+        #             return
+        # else:
+        #     data = owner
+        #     for peerid, dog in self.dogs.iteritems():
+        #         if owner == dog.owner:
+        #             host, port = ret_pid.split(':')
+        #             data
+        # # Dog not found in known dogs, propagate to peers
+        # for next in self.getpeerids():
+        #     data = ret_pid + data
+        #     self.sendtopeer(next, QUERY, data)
 
     def handle_meet(self, peerconn, data):
         """
@@ -139,7 +188,6 @@ class PuppyPlaydate(BTPeer):
             meetups[peerid] = { 'location': location, 'date': date, 'time': time }
             peerconn.senddata(REPLY, 'Meetup request delivered: %s', data)
         except:
-
             peerconn.senddata(ERROR, 'Error delivering meetup request')
 
     def handle_meet_reply(self, peerconn, data):

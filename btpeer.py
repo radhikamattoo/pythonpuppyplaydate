@@ -90,7 +90,7 @@ class BTPeer:
 
 	host, port = clientsock.getpeername()
 	peerconn = BTPeerConnection( None, host, port, clientsock, debug=False )
-	
+
 	try:
 	    msgtype, msgdata = peerconn.recvdata()
 	    if msgtype: msgtype = msgtype.upper()
@@ -104,7 +104,7 @@ class BTPeer:
 	except:
 	    if self.debug:
 		traceback.print_exc()
-	
+
 	self.__debug( 'Disconnecting ' + str(clientsock.getpeername()) )
 	peerconn.close()
 
@@ -119,7 +119,7 @@ class BTPeer:
 	    stabilizer()
 	    time.sleep( delay )
 
-	    
+
 
     #--------------------------------------------------------------------------
     def setmyid( self, myid ):
@@ -131,15 +131,15 @@ class BTPeer:
     #--------------------------------------------------------------------------
     def startstabilizer( self, stabilizer, delay ):
     #--------------------------------------------------------------------------
-	""" Registers and starts a stabilizer function with this peer. 
-	The function will be activated every <delay> seconds. 
+	""" Registers and starts a stabilizer function with this peer.
+	The function will be activated every <delay> seconds.
 
 	"""
-	t = threading.Thread( target = self.__runstabilizer, 
-			      args = [ stabilizer, delay ] )
-	t.start()
+    	t = threading.Thread( target = self.__runstabilizer,
+    			      args = [ stabilizer, delay ] )
+    	t.start()
 
-	
+
 
     #--------------------------------------------------------------------------
     def addhandler( self, msgtype, handler ):
@@ -172,7 +172,7 @@ class BTPeer:
     def addpeer( self, peerid, host, port ):
     #--------------------------------------------------------------------------
 	""" Adds a peer name and host:port mapping to the known list of peers.
-	
+
 	"""
 	if peerid not in self.peers and (self.maxpeers == 0 or
 					 len(self.peers) < self.maxpeers):
@@ -204,10 +204,10 @@ class BTPeer:
     #--------------------------------------------------------------------------
     def addpeerat( self, loc, peerid, host, port ):
     #--------------------------------------------------------------------------
-	""" Inserts a peer's information at a specific position in the 
+	""" Inserts a peer's information at a specific position in the
 	list of peers. The functions addpeerat, getpeerat, and removepeerat
-	should not be used concurrently with addpeer, getpeer, and/or 
-	removepeer. 
+	should not be used concurrently with addpeer, getpeer, and/or
+	removepeer.
 
 	"""
 	self.peers[ loc ] = (peerid, host, int(port))
@@ -226,7 +226,7 @@ class BTPeer:
     #--------------------------------------------------------------------------
     def removepeerat( self, loc ):
     #--------------------------------------------------------------------------
-	removepeer( self, loc ) 
+	removepeer( self, loc )
 
 
 
@@ -245,7 +245,7 @@ class BTPeer:
 	return len(self.peers)
 
 
-    
+
     #--------------------------------------------------------------------------
     def maxpeersreached( self ):
     #--------------------------------------------------------------------------
@@ -262,7 +262,7 @@ class BTPeer:
     #--------------------------------------------------------------------------
     def makeserversocket( self, port, backlog=5 ):
     #--------------------------------------------------------------------------
-	""" Constructs and prepares a server socket listening on the given 
+	""" Constructs and prepares a server socket listening on the given
 	port.
 
 	"""
@@ -279,13 +279,13 @@ class BTPeer:
     #--------------------------------------------------------------------------
 	"""
 	sendtopeer( peer id, message type, message data, wait for a reply )
-	 -> [ ( reply type, reply data ), ... ] 
+	 -> [ ( reply type, reply data ), ... ]
 
 	Send a message to the identified peer. In order to decide how to
 	send the message, the router handler for this peer will be called.
 	If no router function has been registered, it will not work. The
-	router function should provide the next immediate peer to whom the 
-	message should be forwarded. The peer's reply, if it is expected, 
+	router function should provide the next immediate peer to whom the
+	message should be forwarded. The peer's reply, if it is expected,
 	will be returned.
 
 	Returns None if the message could not be routed.
@@ -300,11 +300,11 @@ class BTPeer:
 	return self.connectandsend( host, port, msgtype, msgdata,
 				    pid=nextpid,
 				    waitreply=waitreply )
-    
+
 
 
     #--------------------------------------------------------------------------
-    def connectandsend( self, host, port, msgtype, msgdata, 
+    def connectandsend( self, host, port, msgtype, msgdata,
 			pid=None, waitreply=True ):
     #--------------------------------------------------------------------------
 	"""
@@ -315,27 +315,27 @@ class BTPeer:
 	reply, if expected, will be returned as a list of tuples.
 
 	"""
-	msgreply = []
-	try:
-	    peerconn = BTPeerConnection( pid, host, port, debug=self.debug )
-	    peerconn.senddata( msgtype, msgdata )
-	    self.__debug( 'Sent %s: %s' % (pid, msgtype) )
-	    
-	    if waitreply:
-		onereply = peerconn.recvdata()
-		while (onereply != (None,None)):
-		    msgreply.append( onereply )
-		    self.__debug( 'Got reply %s: %s' 
-				  % ( pid, str(msgreply) ) )
-		    onereply = peerconn.recvdata()
-	    peerconn.close()
-	except KeyboardInterrupt:
-	    raise
-	except:
-	    if self.debug:
-		traceback.print_exc()
-	
-	return msgreply
+    	msgreply = []
+    	try:
+    	    peerconn = BTPeerConnection( pid, host, port, debug=self.debug )
+    	    peerconn.senddata( msgtype, msgdata )
+    	    self.__debug( 'Sent %s: %s' % (pid, msgtype) )
+
+    	    if waitreply:
+    		onereply = peerconn.recvdata()
+    		while (onereply != (None,None)):
+    		    msgreply.append( onereply )
+    		    self.__debug( 'Got reply %s: %s'
+    				  % ( pid, str(msgreply) ) )
+    		    onereply = peerconn.recvdata()
+    	    peerconn.close()
+    	except KeyboardInterrupt:
+    	    raise
+    	except:
+    	    if self.debug:
+    		traceback.print_exc()
+
+    	return msgreply
 
     # end connectsend method
 
@@ -365,7 +365,7 @@ class BTPeer:
 
 	self.peerlock.acquire()
 	try:
-	    for pid in todelete: 
+	    for pid in todelete:
 		if pid in self.peers: del self.peers[pid]
 	finally:
 	    self.peerlock.release()
@@ -380,7 +380,7 @@ class BTPeer:
 	s.settimeout(2)
 	self.__debug( 'Server started: %s (%s:%d)'
 		      % ( self.myid, self.serverhost, self.serverport ) )
-	
+
 	while not self.shutdown:
 	    try:
 		self.__debug( 'Listening for connections...' )
@@ -471,7 +471,7 @@ class BTPeerConnection:
 		traceback.print_exc()
 	    return False
 	return True
-	    
+
 
     #--------------------------------------------------------------------------
     def recvdata( self ):
@@ -486,7 +486,7 @@ class BTPeerConnection:
 	try:
 	    msgtype = self.sd.read( 4 )
 	    if not msgtype: return (None, None)
-	    
+
             lenstr = self.sd.read( 4 )
 	    msglen = int(struct.unpack( "!L", lenstr )[0])
 	    msg = ""
@@ -531,7 +531,3 @@ class BTPeerConnection:
     def __str__( self ):
     #--------------------------------------------------------------------------
 	return "|%s|" % peerid
-
-
-
-
