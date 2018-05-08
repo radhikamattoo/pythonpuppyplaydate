@@ -200,24 +200,25 @@ class PuppyPlaydate(BTPeer):
         """
         try:
             peerid, location, date, time = data.split()
-            self.meetups[peerid] = { 'location': location, 'date': date, 'time': time }
+            self.meetups[peerid] = { 'to': self.myid, 'location': location, 'date': date, 'time': time, 'accepted': None }
         except:
             peerconn.senddata(ERROR, 'Error delivering meetup request')
 
     def handle_meet_reply(self, peerconn, data):
         """
-        User will input Y or N for a given meetup request. Data will be in format:
-            Y/N location date time
+        Handles response to a meetup request (yes or no)
+        If Yes, change the corresponding request's 'Accepted' parameter to True
+        If No, change the corresponding request's 'Accepted' parameter to False
         """
-        try:
-            answer, location, date, time = data.split()
-            meetup = ''.join([location, date, time])
-            if answer == 'Y':
-                peerconn.senddata(MEETREPLY, 'User has accepted your meetup %s', meetup)
-            else:
-                peerconn.senddata(MEETREPLY, 'User has rejected your meetup %s', meetup)
-        except:
-            print "Error parsing reply"
+        # FIXME: Indexing error
+        print "Updating meetup for ", self.myid
+        toId, answer = data.split()
+        for fromId in self.meetups:
+            if self.meetups[fromId]['to'] == toId:
+                if answer == 'Yes':
+                    self.meetups[fromId]['accepted'] = True
+                else:
+                    self.meetups[fromId]['accepted'] = False
 
     def handle_doginfo(self, peerconn, data):
         peerconn.senddata(REPLY, json.dumps(self.dogs[self.myid]))

@@ -46,7 +46,7 @@ class PuppyPlaydateGui(Frame):
       if self.dogList.size() > 0:
          self.dogList.delete(0, self.dogList.size() - 1)
       for f in self.btpeer.dogs:
-         p = json.dumps(self.btpeer.dogs[f])
+         p = self.btpeer.dogs[f]
          if f == self.btpeer.myid:
             p += '(local)'
          self.dogList.insert( END, "%s:%s" % (f,p) )
@@ -55,8 +55,8 @@ class PuppyPlaydateGui(Frame):
       if self.meetupList.size() > 0:
          self.meetupList.delete(0, self.meetupList.size() - 1)
       for peerid in self.btpeer.meetups:
-         meetup_data = json.dumps(self.btpeer.meetups[peerid])
-         self.meetupList.insert( END, "%s:%s" % (peerid,meetup_data) )
+         meetup_data = self.btpeer.meetups[peerid]
+         self.meetupList.insert( END, "%s" % json.dumps({ peerid : meetup_data}) )
 
     def createWidgets( self ):
       """
@@ -160,14 +160,49 @@ class PuppyPlaydateGui(Frame):
       self.rebuildEntry.grid(row=2, column=0)
       self.rebuildButton.grid(row=2, column=1)
 
+    def onYes(self):
+        selection = self.meetupList.curselection()
+        if len(selection) == 1:
+            meetup_data = json.loads(self.meetupList.get(selection[0]).lstrip().rstrip())
+            peerid = next(iter(meetup_data))
+            print "Sending response to:", peerid
+            if peerid != self.btpeer.myid:
+                self.btpeer.meetups[peerid]['accepted'] = True
+                self.updateMeetupList()
+                self.btpeer.sendtopeer( peerid, MEETREPLY,
+                                        '%s %s' % (self.btpeer.myid, 'Yes'))
+
+
+    def onNo(self):
+        selection = self.meetupList.curselection()
+        if len(selection) == 1:
+            meetup_data = json.loads(self.meetupList.get(selection[0]).lstrip().rstrip())
+            peerid = next(iter(meetup_data))
+            if peerid != self.btpeer.myid:
+                self.btpeer.meetups[peerid]['accepted'] = False
+                self.updateMeetupList()
+                self.btpeer.sendtopeer( peerid, MEETREPLY,
+                                        '%s %s' % (self.btpeer.myid, 'No'))
+
     def onMeetupRequest(self):
         sels = self.peerList.curselection()
         if len(sels)==1:
+            # Send request to target node
             peerid = self.peerList.get(sels[0])
             meetup_data = self.meetupRequestEntry.get().lstrip().rstrip()
-            self.btpeer.sendtopeer( peerid, MEET,
-                                            "%s %s" % (peerid, meetup_data))
-
+            # Check if there's a pending request
+            found = False
+            for id, data in self.btpeer.meetups.iteritems():
+                if id == self.btpeer.myid:
+                    if data['to'] == peerid and data['accepted'] == None:
+                        found = True
+            if not found: # Can only send one meetup request to a node at a time
+                self.btpeer.sendtopeer( peerid, MEET,
+                                                "%s %s" % (self.btpeer.myid, meetup_data))
+                # Add request to my list
+                location, date, time = meetup_data.split()
+                self.btpeer.meetups[self.btpeer.myid] = {'to': peerid, 'location': location, 'date': date, 'time': time, 'accepted': None}
+                self.updateMeetupList()
 
     def onAdd(self):
       dog = self.adddogEntry.get()
@@ -180,33 +215,11 @@ class PuppyPlaydateGui(Frame):
 
     def onSearch(self):
       data = self.searchEntry.get()
-      print "Searching for ", data
       self.searchEntry.delete( 0, len(data) )
 
       for p in self.btpeer.getpeerids():
-         print "Sending search query to:", p
          self.btpeer.sendtopeer( p,
                                  QUERY, "%s %s" % ( self.btpeer.myid, data ) )
-
-
-    def onYes(self):
-        print "Yes"
-    def onNo(self):
-        print "No"
-
-    # def onFetch(self):
-    #   sels = self.dogList.curselection()
-    #   if len(sels)==1:
-    #      sel = self.dogList.get(sels[0]).split(':')
-    #      if len(sel) > 2:  # fname:host:port
-    #         fname,host,port = sel
-    #         resp = self.btpeer.connectandsend( host, port, FILEGET, fname )
-    #         if len(resp) and resp[0][0] == REPLY:
-    #            fd = file( fname, 'w' )
-    #            fd.write( resp[0][1] )
-    #            fd.close()
-    #            self.btpeer.files[fname] = None  # because it's local now
-
 
     def onRemove(self):
       sels = self.peerList.curselection()
@@ -223,7 +236,6 @@ class PuppyPlaydateGui(Frame):
 
 
     def onRebuild(self):
-      print "REBUILDING", self.btpeer.maxpeersreached()
       if not self.btpeer.maxpeersreached():
          peerid = self.rebuildEntry.get()
          self.rebuildEntry.delete( 0, len(peerid) )
