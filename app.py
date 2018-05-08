@@ -142,8 +142,8 @@ class PuppyPlaydateGui(Frame):
 
       self.removeButton = Button( pbFrame, text='Remove',
                                   command=self.onRemove )
-      self.refreshButton = Button( pbFrame, text='Refresh',
-                                   command=self.onRefresh)
+      self.requestDogs = Button( pbFrame, text='Get Info',
+                                   command=self.onRequestDogs)
 
       self.meetupRequestEntry = Entry(pbFrame, width=25)
       self.meetupRequestButton = Button(pbFrame, text='Request Meetup',
@@ -159,6 +159,12 @@ class PuppyPlaydateGui(Frame):
       self.meetupRequestButton.grid(row=1,column=1)
       self.rebuildEntry.grid(row=2, column=0)
       self.rebuildButton.grid(row=2, column=1)
+
+    def onRequestDogs(self):
+        selection = self.peerList.curselection()
+        if len(selection) == 1:
+            peerid = self.peerList.get(sels[0])
+
 
     def onYes(self):
         selection = self.meetupList.curselection()

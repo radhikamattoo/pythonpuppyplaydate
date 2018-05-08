@@ -8,6 +8,7 @@ LISTPEERS = "LIST"
 ADDFRIEND = "ADDF"
 INFO = "INFO"
 DOGINFO = "DINF"
+DINFOREPLY = "DREP"
 MEET = "MEET"
 MEETREPLY = "MREP"
 REPLY = "REPLY"
@@ -15,6 +16,12 @@ QUERY = "QUER"
 QRESP = "QRES"
 ERROR = "ERRO"
 QUIT = "QUIT"
+
+## TODO:
+## Implement the DINFOREPLY message 
+## Double check functionality with lists inside of self.dog
+## Connection between nodes isn't perfect, test it
+
 
 class PuppyPlaydate(BTPeer):
     def __init__(self, maxpeers, serverport):
@@ -28,6 +35,7 @@ class PuppyPlaydate(BTPeer):
     		    ADDFRIEND : self.handle_insertpeer,
     		    INFO: self.handle_peername,
                 DOGINFO: self.handle_doginfo,
+                DINFOREPLY: self.handle_doginfo_reply
     		    MEET: self.handle_meet,
                 MEETREPLY: self.handle_meet_reply,
                 QRESP: self.handle_qresponse,
@@ -135,7 +143,9 @@ class PuppyPlaydate(BTPeer):
         owner:name:breed:age
         """
         owner, name, breed, age = data.split()
-        self.dogs[self.myid] = {'owner': owner, 'name': name, 'breed': breed, 'age': age}
+        if not isinstance(self.dogs[self.myid], (list,)):
+            self.dogs[self.myid] = []
+        self.dogs[self.myid].append({'owner': owner, 'name': name, 'breed': breed, 'age': age})
 
     def handle_query(self, peerconn, data):
         """
@@ -162,12 +172,13 @@ class PuppyPlaydate(BTPeer):
     def process_full_query(self, ret_pid, owner, name, breed, age):
         print "Full query"
         data = ' '.join([owner, name, breed, age])
-        for peerid, dog in self.dogs.iteritems():
-            if owner == dog['owner'] and name == dog['name'] and breed == dog['breed'] and age == dog['age']:
-                host, port = ret_pid.split(":")
-                data = peerid + ' ' + data
-                self.connectandsend(host, int(port), QRESP, data, pid=ret_pid)
-                return
+        for peerid, dogList in self.dogs.iteritems():
+            for dog in dogList:
+                if owner == dog['owner'] and name == dog['name'] and breed == dog['breed'] and age == dog['age']:
+                    host, port = ret_pid.split(":")
+                    data = peerid + ' ' + data
+                    self.connectandsend(host, int(port), QRESP, data, pid=ret_pid)
+                    return
         # Dog not found in known dogs, propagate to peers
         for next in self.getpeerids():
             data = ret_pid + ' ' + data
@@ -175,8 +186,8 @@ class PuppyPlaydate(BTPeer):
 
     def process_owner_query(self, ret_pid, owner):
         print "Owner query"
-        for peerid, dog in self.dogs.iteritems():
-            print dog
+        for peerid, dogList in self.dogs.iteritems():
+            dog = dogList[0]
             if owner == dog['owner']:
                 host, port = ret_pid.split(':')
                 data = ' '.join([peerid, dog['owner'], dog['name'], dog['breed'], dog['age']])
@@ -190,7 +201,9 @@ class PuppyPlaydate(BTPeer):
         try:
             peerid, owner, name, breed, age = data.split()
             dog =  { 'owner': owner, 'name': name, 'breed': breed, 'age': age }
-            self.dogs[peerid] = dog
+            if not isinstance(self.dogs[peerid], (list,)):
+                self.dogs[peerid] = []
+            self.dogs[peerid].append(dog)
         except:
             self._debug('Error handling query response.')
 
@@ -221,4 +234,14 @@ class PuppyPlaydate(BTPeer):
                     self.meetups[fromId]['accepted'] = False
 
     def handle_doginfo(self, peerconn, data):
-        peerconn.senddata(REPLY, json.dumps(self.dogs[self.myid]))
+        """
+        Handles request for all target node's dogs
+        """
+        dogs = []
+        for peerid, dog in self.dogs.iteritems():
+            if peerid == self.myid:
+                dogs.append({peerid:dog})
+        peerconn.senddata(DINFOREPLY, json.dumps(dogs))
+
+    def handle_doginfo_reply(self, perconn, data):
+        dogs = json.loads(data)
