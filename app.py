@@ -51,6 +51,13 @@ class PuppyPlaydateGui(Frame):
             p += '(local)'
          self.dogList.insert( END, "%s:%s" % (f,p) )
 
+    def updateMeetupList( self ):
+      if self.meetupList.size() > 0:
+         self.meetupList.delete(0, self.meetupList.size() - 1)
+      for peerid in self.btpeer.meetups:
+         meetup_data = json.dumps(self.btpeer.meetups[peerid])
+         self.meetupList.insert( END, "%s:%s" % (peerid,meetup_data) )
+
     def createWidgets( self ):
       """
       Set up the frame widgets
@@ -64,6 +71,7 @@ class PuppyPlaydateGui(Frame):
       searchFrame = Frame(self)
       adddogFrame = Frame(self)
       pbFrame = Frame(self)
+      meetupRequestFrame = Frame(self)
 
       meetupFrame.grid(row=0, column=0, sticky=N+S)
       dogFrame.grid(row=0, column=1, sticky=N+S)
@@ -84,7 +92,7 @@ class PuppyPlaydateGui(Frame):
       meetupScroll = Scrollbar( meetupListFrame, orient=VERTICAL)
       meetupScroll.grid(row=0, column=1, sticky=N+S)
 
-      self.meetupList = Listbox(meetupListFrame, height=5, width=40,
+      self.meetupList = Listbox(meetupListFrame, height=5, width=50,
                                 yscrollcommand=meetupScroll.set)
       self.meetupList.grid(row=0, column=0, sticky=N+S)
       meetupScroll["command"] = self.meetupList.yview
@@ -103,18 +111,18 @@ class PuppyPlaydateGui(Frame):
       dogScroll = Scrollbar( dogListFrame, orient=VERTICAL )
       dogScroll.grid(row=0, column=1, sticky=N+S)
 
-      self.dogList = Listbox(dogListFrame, height=5, width=40,
+      self.dogList = Listbox(dogListFrame, height=5, width=50,
                         yscrollcommand=dogScroll.set)
       self.dogList.grid(row=0, column=0, sticky=N+S)
       dogScroll["command"] = self.dogList.yview
 
-      self.adddogEntry = Entry(adddogFrame, width=15)
+      self.adddogEntry = Entry(adddogFrame, width=25)
       self.adddogButton = Button(adddogFrame, text='Add Dog',
                            command=self.onAdd)
       self.adddogEntry.grid(row=0, column=0)
       self.adddogButton.grid(row=0, column=1)
 
-      self.searchEntry = Entry(searchFrame, width=15)
+      self.searchEntry = Entry(searchFrame, width=25)
       self.searchButton = Button(searchFrame, text=' Search  ',
                            command=self.onSearch)
       self.searchEntry.grid(row=0, column=0)
@@ -126,7 +134,7 @@ class PuppyPlaydateGui(Frame):
       peerScroll = Scrollbar( peerListFrame, orient=VERTICAL )
       peerScroll.grid(row=0, column=1, sticky=N+S)
 
-      self.peerList = Listbox(peerListFrame, height=5, width=40,
+      self.peerList = Listbox(peerListFrame, height=5, width=50,
                         yscrollcommand=peerScroll.set)
       #self.peerList.insert( END, '1', '2', '3', '4', '5', '6' )
       self.peerList.grid(row=0, column=0, sticky=N+S)
@@ -134,24 +142,31 @@ class PuppyPlaydateGui(Frame):
 
       self.removeButton = Button( pbFrame, text='Remove',
                                   command=self.onRemove )
-      self.refreshButton = Button( pbFrame, text = 'Refresh',
-                            command=self.onRefresh )
+      self.refreshButton = Button( pbFrame, text='Refresh',
+                                   command=self.onRefresh)
+
+      self.meetupRequestEntry = Entry(pbFrame, width=25)
       self.meetupRequestButton = Button(pbFrame, text='Request Meetup',
                                         command=self.onMeetupRequest)
 
-      self.rebuildEntry = Entry(rebuildFrame, width=15)
+      self.rebuildEntry = Entry(rebuildFrame, width=25)
       self.rebuildButton = Button( rebuildFrame, text = 'Add Peer',
-                            command=self.onRebuild)
+                            command=self.onRebuild, padx=35)
 
-
-      self.removeButton.grid(row=0, column=0)
-      self.refreshButton.grid(row=0, column=1)
-      self.meetupRequestButton.grid(row=0,column=2)
-      self.rebuildEntry.grid(row=1, column=0)
-      self.rebuildButton.grid(row=1, column=1)
+      self.refreshButton.grid(row=0, column=0)
+      self.removeButton.grid(row=0, column=1)
+      self.meetupRequestEntry.grid(row=1, column=0)
+      self.meetupRequestButton.grid(row=1,column=1)
+      self.rebuildEntry.grid(row=2, column=0)
+      self.rebuildButton.grid(row=2, column=1)
 
     def onMeetupRequest(self):
-        location, date, time = data.split(':')
+        sels = self.peerList.curselection()
+        if len(sels)==1:
+            peerid = self.peerList.get(sels[0])
+            meetup_data = self.meetupRequestEntry.get().lstrip().rstrip()
+            self.btpeer.sendtopeer( peerid, MEET,
+                                            "%s %s" % (peerid, meetup_data))
 
 
     def onAdd(self):
@@ -204,6 +219,7 @@ class PuppyPlaydateGui(Frame):
     def onRefresh(self):
       self.updatePeerList()
       self.updateDogList()
+      self.updateMeetupList()
 
 
     def onRebuild(self):

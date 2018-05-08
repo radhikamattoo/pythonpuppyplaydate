@@ -19,6 +19,7 @@ QUIT = "QUIT"
 class PuppyPlaydate(BTPeer):
     def __init__(self, maxpeers, serverport):
     	BTPeer.__init__(self, maxpeers, serverport)
+
         self.meetups = {} # Requested meetup dates, user can reply Y or N or nothing at all.
     	self.dogs = {}  # Known dogs in format of { peerid: {owner, name, age, breed}, ...}
 
@@ -51,7 +52,6 @@ class PuppyPlaydate(BTPeer):
         		peerconn.senddata(ERROR, msg)
     	finally:
     	    self.peerlock.release()
-
 
     def handle_listpeers(self, peerconn, data):
     	self.peerlock.acquire()
@@ -129,7 +129,6 @@ class PuppyPlaydate(BTPeer):
     	    rt.extend(self.peers[peerid])
     	    return rt
 
-
     def addlocaldog(self, data):
         """
         Adds new dog info, should be following structure:
@@ -160,8 +159,6 @@ class PuppyPlaydate(BTPeer):
             except:
                 peerconn.senddata(ERROR, 'Invalid query')
 
-
-
     def process_full_query(self, ret_pid, owner, name, breed, age):
         print "Full query"
         data = ' '.join([owner, name, breed, age])
@@ -189,10 +186,9 @@ class PuppyPlaydate(BTPeer):
         for next in self.getpeerids():
             self.sendtopeer(next, QUERY, '%s:%s' % (ret_pid, owner))
 
-
     def handle_qresponse(self, peerconn, data):
         try:
-            peerid, owner, name, breed, age = data.split(' ')
+            peerid, owner, name, breed, age = data.split()
             dog =  { 'owner': owner, 'name': name, 'breed': breed, 'age': age }
             self.dogs[peerid] = dog
         except:
@@ -204,8 +200,7 @@ class PuppyPlaydate(BTPeer):
         """
         try:
             peerid, location, date, time = data.split()
-            meetups[peerid] = { 'location': location, 'date': date, 'time': time }
-            peerconn.senddata(REPLY, 'Meetup request delivered: %s', data)
+            self.meetups[peerid] = { 'location': location, 'date': date, 'time': time }
         except:
             peerconn.senddata(ERROR, 'Error delivering meetup request')
 
